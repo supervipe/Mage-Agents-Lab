@@ -23,6 +23,10 @@ dist/
 .env
 .env.*
 !.env.example
+.data/
+credentials.json
+client_secret*.json
+.secrets/
 
 # FastAPI/Uvicorn
 *.log

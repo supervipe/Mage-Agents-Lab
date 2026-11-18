@@ -1,0 +1,9 @@
+# Mage Agents Lab privacy notice
+
+Mage Agents Lab is a personal application that runs on the owner's computer. It connects to Gmail only after the owner grants Google OAuth consent. It requests read-only access to inbox messages and permission to send email. Sending happens only when the owner approves a saved draft in the local dashboard.
+
+The app reads sender, subject, date, and message text to identify important mail. It sends sender and subject to the owner's OpenAI API account for screening. It sends message text to OpenAI only for messages selected for a detailed importance check and summary. It also sends selected news excerpts and important email summaries to OpenAI to create the daily briefing. The app requests that OpenAI not store API responses (`store: false`).
+
+OAuth tokens are stored in Windows Credential Manager on native Windows, or in encrypted files in a persistent Docker volume on Linux. The encryption key stays in a separate local file. The local SQLite database stores email metadata, importance decisions, summaries, news links, drafts, job status, and estimated API usage. It does not store complete email bodies. The dashboard is served only on the computer's loopback address. Data is not sold or used for advertising.
+
+The owner can revoke the app's Gmail access in [Google Account settings](https://myaccount.google.com/permissions). The owner can remove local data from the Windows `.data` directory or the Linux Docker volume and can remove saved Gmail tokens from Windows Credential Manager or the encrypted Docker token files. Privacy questions can be raised through [GitHub Issues](https://github.com/supervipe/Mage-Agents-Lab/issues).

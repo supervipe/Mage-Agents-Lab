@@ -1,0 +1,57 @@
+name: mage-agents-lab
+
+x-app: &app
+  build: .
+  image: mage-agents-lab:local
+  env_file: .env
+  environment:
+    TOKEN_STORE_BACKEND: encrypted_file
+    TOKEN_ENCRYPTION_KEY_FILE: /run/secrets/token_key
+    TOKEN_STORE_DIR: /app/.data/tokens
+    DATABASE_PATH: /app/.data/agents.sqlite3
+    TZ: ${TZ:-America/Vancouver}
+  volumes:
+    - mage_data:/app/.data
+  secrets:
+    - token_key
+
+services:
+  api:
+    <<: *app
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "app.worker"]
+    restart: unless-stopped
+
+  auth:
+    <<: *app
+    profiles: ["auth"]
+    network_mode: host
+    environment:
+      TOKEN_STORE_BACKEND: encrypted_file
+      TOKEN_ENCRYPTION_KEY_FILE: /run/secrets/token_key
+      TOKEN_STORE_DIR: /app/.data/tokens
+      DATABASE_PATH: /app/.data/agents.sqlite3
+      OAUTH_OPEN_BROWSER: "0"
+      TZ: ${TZ:-America/Vancouver}
+    volumes:
+      - mage_data:/app/.data
+      - ./credentials.json:/app/credentials.json:ro
+    entrypoint: ["python", "-m", "app.gmail_auth", "--client-secrets", "credentials.json"]
+
+volumes:
+  mage_data:
+
+secrets:
+  token_key:
+    file: ./.secrets/token_key

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mage Agents Lab</title>
+  <style>
+    :root { color-scheme: light; --ink:#172321; --muted:#65716d; --line:#d9e2dc; --paper:#f5f8f4; --card:#fff; --green:#136b52; --mint:#e0f3e8; --red:#a93832; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.5 system-ui,Segoe UI,sans-serif; }
+    header { background:#133d32; color:white; padding:28px max(24px,calc((100vw - 1100px)/2)); }
+    h1 { margin:0; font-size:30px; letter-spacing:-.03em; }
+    header p { margin:5px 0 0; color:#c6ded2; }
+    main { max-width:1148px; padding:28px 24px 60px; margin:auto; }
+    .status { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 24px; }
+    .pill { border:1px solid var(--line); background:white; border-radius:99px; padding:7px 12px; color:var(--muted); font-size:13px; }
+    .pill.good { background:var(--mint); border-color:#bce3cc; color:#165b44; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px; box-shadow:0 6px 24px #163d2610; }
+    .wide { grid-column:1/-1; }
+    h2 { margin:0 0 14px; font-size:20px; letter-spacing:-.02em; }
+    h3 { margin:0; font-size:15px; }
+    .muted, small { color:var(--muted); }
+    .item { padding:15px 0; border-top:1px solid var(--line); }
+    .item:first-child { border-top:0; padding-top:0; }
+    .meta { color:var(--muted); font-size:12px; margin:3px 0 8px; }
+    .item p { margin:5px 0 0; }
+    a { color:var(--green); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    label { display:block; margin:12px 0 5px; font-weight:600; font-size:13px; }
+    input,select,textarea { width:100%; border:1px solid #b9c8bf; border-radius:8px; background:white; padding:10px 11px; color:var(--ink); font:inherit; }
+    textarea { min-height:130px; resize:vertical; }
+    button { border:0; border-radius:8px; background:var(--green); color:white; padding:10px 15px; font:600 14px system-ui; cursor:pointer; }
+    button:hover { filter:brightness(.93); }
+    button.secondary { background:#e4eee8; color:#195640; }
+    button.danger { background:var(--red); }
+    button:disabled { opacity:.55; cursor:wait; }
+    .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+    .notice { min-height:23px; color:var(--red); margin-top:10px; }
+    .digest { white-space:pre-wrap; line-height:1.7; }
+    .draft-body { white-space:pre-wrap; max-height:220px; overflow:auto; padding:12px; background:#f6f8f5; border-radius:8px; }
+    @media(max-width:760px) { .grid { grid-template-columns:1fr; } .wide { grid-column:auto; } header { padding:24px; } }
+  </style>
+</head>
+<body>
+  <header><h1>Mage Agents Lab</h1><p>Your local email and technology briefing</p></header>
+  <main>
+    <div id="status" class="status"></div>
+    <div class="grid">
+      <section class="card wide"><h2>Daily briefing</h2><div id="digest" class="digest muted">Loading…</div></section>
+      <section class="card"><h2>Important email</h2><div id="emails"></div></section>
+      <section class="card"><h2>AI and developer news</h2><div id="news"></div></section>
+      <section class="card"><h2>Compose</h2>
+        <form id="compose">
+          <label for="account">Send from</label><select id="account" required></select>
+          <label for="recipient">To</label><input id="recipient" type="email" required>
+          <label for="instruction">Ask AI to draft (optional)</label><textarea id="instruction" placeholder="What should the email say?"></textarea>
+          <button type="button" class="secondary" id="suggest">Generate draft text</button>
+          <label for="subject">Subject</label><input id="subject" maxlength="250" required>
+          <label for="body">Message</label><textarea id="body" required></textarea>
+          <div class="actions"><button type="submit">Save for approval</button></div>
+        </form><div class="notice" id="notice"></div>
+      </section>
+      <section class="card"><h2>Drafts to approve</h2><div id="drafts"></div></section>
+    </div>
+  </main>
+  <script>
+    let csrf = '';
+    const el = id => document.getElementById(id);
+    const date = value => value ? new Date(value).toLocaleString() : '';
+    const node = (tag, text, className) => { const n=document.createElement(tag); n.textContent=text; if(className)n.className=className; return n; };
+    function link(url, text) {
+      const a=node('a',text);
+      if (url && url.startsWith('https://')) { a.href=url; a.target='_blank'; a.rel='noopener noreferrer'; }
+      return a;
+    }
+    async function action(path, body) {
+      const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(body||{})});
+      const data=await response.json();
+      if(!response.ok) throw new Error(data.detail||`Request failed (${response.status})`);
+      return data;
+    }
+    function empty(container,text) { container.replaceChildren(node('p',text,'muted')); }
+    function renderItems(container,items,type) {
+      container.replaceChildren();
+      if(!items.length) return empty(container,type==='email'?'No important messages collected yet.':'No news summaries collected yet.');
+      for(const item of items) {
+        const card=node('article','','item');
+        const title=node('h3',''); title.append(link(item.url,item.subject||item.title)); card.append(title);
+        card.append(node('div',`${type==='email'?item.account+' · '+item.sender:item.source} · ${date(item.received_at||item.published_at)}`,'meta'));
+        card.append(node('p',item.summary||'', ''));
+        container.append(card);
+      }
+    }
+    function renderDrafts(items) {
+      const container=el('drafts'); container.replaceChildren();
+      const drafts=items.filter(item=>item.status==='draft'||item.status==='uncertain');
+      if(!drafts.length) return empty(container,'No drafts waiting for approval.');
+      for(const item of drafts) {
+        const card=node('article','','item');
+        card.append(node('h3',item.subject));
+        card.append(node('div',`${item.account} → ${item.recipient} · ${date(item.created_at)}`,'meta'));
+        card.append(node('div',item.body,'draft-body'));
+        if(item.status==='draft') {
+          const button=node('button','Approve and send'); button.className='danger';
+          button.onclick=async()=>{
+            if(!confirm(`Send "${item.subject}" to ${item.recipient} from ${item.account}?`))return;
+            button.disabled=true;
+            try { await action(`/api/drafts/${encodeURIComponent(item.id)}/approve`); await load(); }
+            catch(error) { el('notice').textContent=error.message; button.disabled=false; await load(); }
+          };
+          const actions=node('div','','actions'); actions.append(button); card.append(actions);
+        } else {
+          card.append(node('p','Send outcome uncertain. Check Gmail Sent before creating another draft.','muted'));
+        }
+        container.append(card);
+      }
+    }
+    async function load() {
+      const response=await fetch('/api/overview');
+      if(!response.ok) throw new Error('Could not load dashboard');
+      const data=await response.json(); csrf=data.csrf_token;
+      const status=el('status'); status.replaceChildren();
+      const select=el('account'); const current=select.value; select.replaceChildren();
+      for(const account of data.accounts) {
+        status.append(node('span',`${account.email}: ${account.connected?'connected':'setup needed'}`,`pill ${account.connected?'good':''}`));
+        const option=node('option',account.email); option.value=account.email; select.append(option);
+      }
+      if(current)select.value=current;
+      status.append(node('span',`OpenAI estimate $${data.budget.spent.toFixed(2)} / $${data.budget.limit.toFixed(2)} this month`,'pill'));
+      if(!data.jobs.length) status.append(node('span','Worker has not completed a check yet','pill'));
+      for(const job of data.jobs) {
+        if(job.last_error) status.append(node('span',`${job.name}: ${job.last_error}`,'pill'));
+      }
+      el('digest').textContent=data.digest?`${data.digest.day}\n\n${data.digest.body}`:'No daily briefing yet. The worker creates one after the configured hour.';
+      renderItems(el('emails'),data.emails,'email'); renderItems(el('news'),data.news,'news'); renderDrafts(data.drafts);
+    }
+    el('suggest').onclick=async()=>{
+      const button=el('suggest'); button.disabled=true; el('notice').textContent='';
+      try {
+        const data=await action('/api/drafts/suggest',{account:el('account').value,recipient:el('recipient').value,instruction:el('instruction').value});
+        el('subject').value=data.subject; el('body').value=data.body;
+        el('notice').textContent='Review and edit the text, then save it for approval.';
+      } catch(error) { el('notice').textContent=error.message; }
+      finally { button.disabled=false; }
+    };
+    el('compose').onsubmit=async event=>{
+      event.preventDefault(); el('notice').textContent='';
+      try {
+        await action('/api/drafts',{account:el('account').value,recipient:el('recipient').value,subject:el('subject').value,body:el('body').value});
+        el('subject').value=''; el('body').value=''; el('instruction').value='';
+        el('notice').textContent='Draft saved. Review it in the approval list.'; await load();
+      } catch(error) { el('notice').textContent=error.message; }
+    };
+    load().catch(error=>{el('digest').textContent=error.message;});
+    setInterval(()=>load().catch(()=>{}),60000);
+  </script>
+</body>
+</html>
