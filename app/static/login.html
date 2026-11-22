@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Mage Agents Lab</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0a1425; color: #edf4ff; font: 16px system-ui, sans-serif; }
+    main { width: min(90vw, 380px); padding: 2rem; border: 1px solid #334b67; border-radius: 18px; background: #16273d; }
+    h1 { margin-top: 0; } label { display: block; margin-bottom: .5rem; } input, button { box-sizing: border-box; width: 100%; padding: .8rem; border-radius: 8px; font: inherit; }
+    input { border: 1px solid #71819a; } button { margin-top: 1rem; border: 0; background: #54dfd0; color: #082333; font-weight: 700; cursor: pointer; }
+    #error { color: #ffb0aa; min-height: 1.5rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Mage Agents Lab</h1>
+    <form id="login"><label for="password">Dashboard password</label><input id="password" type="password" autocomplete="current-password" required autofocus><button type="submit">Sign in</button></form>
+    <p id="error" role="alert"></p>
+  </main>
+  <script>
+    document.getElementById('login').onsubmit = async event => {
+      event.preventDefault();
+      const button = document.querySelector('button'); button.disabled = true;
+      try {
+        const response = await fetch('/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:document.getElementById('password').value})});
+        if (!response.ok) { const data = await response.json(); throw new Error(data.detail || 'Sign in failed'); }
+        location.href = '/';
+      } catch (error) { document.getElementById('error').textContent = error.message; button.disabled = false; }
+    };
+  </script>
+</body>
+</html>

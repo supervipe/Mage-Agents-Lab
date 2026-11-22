@@ -1,14 +1,7 @@
 import json
 
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-
-def test_chat_stream_endpoint_returns_agent_events() -> None:
-    client = TestClient(app)
-
-    with client.stream(
+def test_chat_stream_endpoint_returns_agent_events(signed_in_client) -> None:
+    with signed_in_client.stream(
         "POST",
         "/chat/stream",
         json={"message": "What is new with FastAPI?"},

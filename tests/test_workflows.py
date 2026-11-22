@@ -100,7 +100,7 @@ def test_budget_reservation_blocks_next_model_call(tmp_path) -> None:
                 ai.json_response(name="draft", schema=DRAFT_SCHEMA, instructions="Write", data={}, max_output_tokens=1000)
 
 
-def test_dashboard_approves_draft_only_once(tmp_path, monkeypatch) -> None:
+def test_dashboard_approves_draft_only_once(tmp_path, monkeypatch, signed_in_client) -> None:
     monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "dashboard.sqlite3"))
     monkeypatch.setenv("GMAIL_ACCOUNTS", "a@gmail.com")
     monkeypatch.setattr("app.api.dashboard.get_token", lambda *_: "connected")
@@ -109,7 +109,7 @@ def test_dashboard_approves_draft_only_once(tmp_path, monkeypatch) -> None:
         sent.append((self.account, recipient, subject, body))
         return "gmail-id"
     monkeypatch.setattr("app.gmail.GmailClient.send", fake_send)
-    client = TestClient(app)
+    client = signed_in_client
     token = client.get("/api/overview").json()["csrf_token"]
     headers = {"X-CSRF-Token": token}
     draft = client.post("/api/drafts", headers=headers, json={

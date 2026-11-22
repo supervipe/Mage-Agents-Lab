@@ -1,0 +1,4 @@
+services:
+  api:
+    ports:
+      - "${MESHNET_BIND_IP:?Set MESHNET_BIND_IP in .env}:8000:8000"

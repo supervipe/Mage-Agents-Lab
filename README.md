@@ -17,7 +17,7 @@ The first live worker pass completed both inbox jobs, news collection, and a dai
 
 FastAPI serves the dashboard and draft actions. A separate worker polls Gmail and news sources, calls the OpenAI API for screening and summaries, and writes results to SQLite. Docker Compose runs the API and worker as separate services with persistent data and automatic restart. Gmail OAuth tokens are encrypted in the Docker data volume with a separate local key.
 
-The API currently listens only on the Linux host's loopback address. It has no user login, so it should stay local until authentication and secure remote access are added. [Architecture and growth plan](docs/architecture.md) describes the next steps toward more agents, a desktop interface, and phone access.
+The API listens on the Linux host's loopback address by default. An optional Nord Meshnet Compose override binds it to the host's private Meshnet IP for access from your own computers. The dashboard requires a password-backed session; the `/health` endpoint remains public to connected peers. [Architecture and growth plan](docs/architecture.md) describes the next steps toward more agents, a desktop interface, and phone access.
 
 ## Privacy, control, and cost
 
@@ -27,16 +27,17 @@ The model cost guard estimates and records usage against a configurable monthly 
 
 ## Where this is going
 
-The first version is intentionally small. The next steps are a reusable contract for each agent's inputs, tools, schedule, budget, and approval rules; durable run records and database migrations; and authentication before any desktop or phone client connects remotely. A queue and PostgreSQL can be added when concurrent agents or devices make them necessary.
+The first version is intentionally small. The next steps are a reusable contract for each agent's inputs, tools, schedule, budget, and approval rules; durable run records and database migrations; and stronger device and session management for future desktop or phone clients. A queue and PostgreSQL can be added when concurrent agents or devices make them necessary.
 
 ## Run on Linux
 
 Install Docker Engine with the Compose plugin and Python 3. Create a private `.env` from `.env.example` with your Gmail account addresses and `OPENAI_API_KEY`, then place a Google OAuth **Desktop** client JSON in the project as `credentials.json`. Both files are ignored by Git. The OAuth app is currently in Google's **Testing** mode, so each account needs renewed consent about every seven days.
 
-Generate a local encryption key and build the containers:
+Generate a local encryption key and a dashboard password, then build the containers:
 
 ```bash
 python3 scripts/init_linux_secrets.py
+python3 scripts/init_dashboard_auth.py
 docker compose build
 ```
 
@@ -46,7 +47,7 @@ Connect each Gmail account. Run this command once per account, replacing the exa
 docker compose --profile auth run --rm auth --account "you@example.com"
 ```
 
-Start the API and worker, then open <http://127.0.0.1:8000/> on that computer:
+Start the API and worker, then open <http://127.0.0.1:8000/> on that computer and sign in with the dashboard password:
 
 ```bash
 docker compose up -d api worker
@@ -55,3 +56,5 @@ docker compose logs --tail=100 api worker
 ```
 
 Compose exposes the dashboard only on `127.0.0.1` and restarts the services unless they are stopped. Keep the computer and Docker service running for scheduled work; jobs catch up after downtime. Set `TZ` in `.env` to change the daily digest time zone. To renew Gmail consent while the app remains in Testing, rerun the auth command for each account. `docker compose down` stops the services without deleting the named data volume.
+
+For private access from Windows or Ubuntu through NordVPN Meshnet, follow the [Brazil host and Canada client steps](docs/meshnet-access.md). This uses an additional Compose file and does not require a domain or public port.

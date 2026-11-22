@@ -1,12 +1,5 @@
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-
-def test_chat_endpoint_returns_answer_and_messages() -> None:
-    client = TestClient(app)
-
-    response = client.post(
+def test_chat_endpoint_returns_answer_and_messages(signed_in_client) -> None:
+    response = signed_in_client.post(
         "/chat",
         json={"message": "What is new with FastAPI?"},
     )

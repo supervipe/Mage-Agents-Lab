@@ -8,7 +8,7 @@
     :root { color-scheme: light; --ink:#172321; --muted:#65716d; --line:#d9e2dc; --paper:#f5f8f4; --card:#fff; --green:#136b52; --mint:#e0f3e8; --red:#a93832; }
     * { box-sizing:border-box; }
     body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.5 system-ui,Segoe UI,sans-serif; }
-    header { background:#133d32; color:white; padding:28px max(24px,calc((100vw - 1100px)/2)); }
+    header { background:#133d32; color:white; padding:28px max(24px,calc((100vw - 1100px)/2)); display:flex; justify-content:space-between; align-items:center; gap:16px; }
     h1 { margin:0; font-size:30px; letter-spacing:-.03em; }
     header p { margin:5px 0 0; color:#c6ded2; }
     main { max-width:1148px; padding:28px 24px 60px; margin:auto; }
@@ -43,7 +43,7 @@
   </style>
 </head>
 <body>
-  <header><h1>Mage Agents Lab</h1><p>Your local email and technology briefing</p></header>
+  <header><div><h1>Mage Agents Lab</h1><p>Your local email and technology briefing</p></div><button id="logout" type="button" class="secondary">Sign out</button></header>
   <main>
     <div id="status" class="status"></div>
     <div class="grid">
@@ -118,6 +118,7 @@
     }
     async function load() {
       const response=await fetch('/api/overview');
+      if(response.status===401) { location.href='/login'; return; }
       if(!response.ok) throw new Error('Could not load dashboard');
       const data=await response.json(); csrf=data.csrf_token;
       const status=el('status'); status.replaceChildren();
@@ -152,6 +153,7 @@
         el('notice').textContent='Draft saved. Review it in the approval list.'; await load();
       } catch(error) { el('notice').textContent=error.message; }
     };
+    el('logout').onclick=async()=>{await fetch('/auth/logout',{method:'POST'}); location.href='/login';};
     load().catch(error=>{el('digest').textContent=error.message;});
     setInterval(()=>load().catch(()=>{}),60000);
   </script>

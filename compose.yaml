@@ -9,11 +9,13 @@ x-app: &app
     TOKEN_ENCRYPTION_KEY_FILE: /run/secrets/token_key
     TOKEN_STORE_DIR: /app/.data/tokens
     DATABASE_PATH: /app/.data/agents.sqlite3
+    DASHBOARD_AUTH_FILE: /run/secrets/dashboard_auth
     TZ: ${TZ:-America/Vancouver}
   volumes:
     - mage_data:/app/.data
   secrets:
     - token_key
+    - dashboard_auth
 
 services:
   api:
@@ -55,3 +57,5 @@ volumes:
 secrets:
   token_key:
     file: ./.secrets/token_key
+  dashboard_auth:
+    file: ./.secrets/dashboard_auth
